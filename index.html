@@ -1,0 +1,501 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Binaural Oscillator Demo</title>
+    <!-- Simple.css for lightweight styling -->
+    <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+    <style>
+        .sliders-row.bottom {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        .slider-vertical {
+            writing-mode: vertical-lr;
+            -webkit-appearance: slider-vertical;
+            appearance: slider-vertical;
+            width: 30px;
+            height: 200px;
+            margin: 0 1rem;
+            transform: rotate(180deg);
+        }
+        .slider-horizontal {
+            width: 100%;
+            max-width: 300px;
+            margin: 0 1rem;
+            accent-color: #3b82f6;
+        }
+        .sliders-row {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 2rem;
+    margin-bottom: 2rem;
+        }
+        .slider-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 44px;
+    font-size: 1.1em;
+    font-weight: 500;
+        }
+
+        .emoji-font {
+            font-family: serif !important;
+        }
+        .main-button {
+            font-size: 1.5em;
+            padding: 0.3em 0.7em;
+            line-height: 1;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* Remove media query override for .sliders-row to keep grid always */
+
+        /* Add spacing below the form for better visual separation */
+        form#oscillator-controls {
+            margin-bottom: 2rem;
+        }
+
+        /* Responsive tweak: keep grid for top row, but allow bottom row to stack on very small screens */
+        @media (max-width: 400px) {
+            .sliders-row.bottom {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Binaural Oscillator Demo</h1>
+        <form id="oscillator-controls" autocomplete="off">
+            <div class="buttons-row" style="display:flex; justify-content:center; align-items:center; gap:0.75em; margin-bottom:1.5em;">
+                <button type="button" id="play-btn" title="Play" class="main-button"><i class="fa-solid fa-play"></i></button>
+                <button type="button" id="pause-btn" title="Pause" class="main-button" style="display:none;"><i class="fa-solid fa-pause"></i></button>
+                <button type="button" id="reset-btn" title="Reset" class="main-button"><i class="fa-solid fa-rotate-right"></i></button>
+                <button type="button" id="settings-btn" title="Settings" class="main-button"><i class="fa-solid fa-gear"></i></button>
+            </div>
+            <div class="sliders-row">
+                <div class="slider-label" id="ld-container">
+                    <label for="ld">LD</label>
+                    <input type="range" id="ld" min="0" max="100" value="0" class="slider-vertical" style="min-width:0;">
+                    <code><span id="ld-current-label" style="font-size:0.95em; margin-top:0.3em;"></span></code>
+                </div>
+                <div class="slider-label" style="flex:1;" id="tone-container">
+                    <div style="display:flex; align-items:center; width:100%;">
+                        <span id="tone-min-label" style="font-size:0.85em;  min-width:2.5em; text-align:right; margin-right:0.5em;"></span>
+                        <div style="flex:1 1 0%; display:flex; flex-direction:column; align-items:center; min-width:0;">
+                            <label for="tone">Tone</label>
+                            <input type="range" id="tone" min="0" max="10000" value="440" class="slider-horizontal" style="width:100%; min-width:0;">
+                            <code><span id="tone-current-label" style="font-size:0.95em; margin-top:0.3em;"></span></code>
+                        </div>
+                        <span id="tone-max-label" style="font-size:0.85em; min-width:2.5em; text-align:left; margin-left:0.5em;"></span>
+                    </div>
+                </div>
+                <div class="slider-label" id="rd-container">
+                    <label for="rd">RD</label>
+                    <input type="range" id="rd" min="0" max="100" value="0" class="slider-vertical" style="min-width:0;">
+                    <code><span id="rd-current-label" style="font-size:0.95em; margin-top:0.3em;"></span></code>
+                </div>
+            </div>
+            <div class="sliders-row bottom">
+                <div class="slider-label" id="offset-container">
+                    <label for="offset">Offset</label>
+                    <input type="range" id="offset" min="-50" max="50" value="0" class="slider-horizontal">
+                </div>
+                <div class="slider-label" id="left-volume-container" style="display:none;">
+                    <label for="left-volume">Left Volume</label>
+                    <input type="range" id="left-volume" min="0" max="100" value="80" class="slider-vertical">
+                </div>
+                <div class="slider-label" id="right-volume-container" style="display:none;">
+                    <label for="right-volume">Right Volume</label>
+                    <input type="range" id="right-volume" min="0" max="100" value="80" class="slider-vertical">
+                </div>
+                <div class="slider-label" id="volume-container">
+                    <label for="volume">Volume</label>
+                    <input type="range" id="volume" min="0" max="100" value="80" class="slider-vertical">
+                </div>
+            </div>
+        </form>
+    </main>
+    <!-- Settings Dialog -->
+    <dialog id="settings-dialog" style="min-width:300px; border-radius:10px; border:1px solid #bbb; padding:1.5em;">
+        <form method="dialog" style="display:flex; flex-direction:column; gap:1.2em;">
+            <h2 style="margin:0 0 0.5em 0; font-size:1.2em;">Settings</h2>
+            <div style="display:flex; align-items:center; gap:0.7em;">
+                <input type="checkbox" id="log-tone">
+                <label for="log-tone" style="margin:0; font-size:1em; font-weight:400;">Log Tone</label>
+                <input type="checkbox" id="music-notes-only">
+                <label for="music-notes-only" style="margin:0; font-size:1em; font-weight:400;">Music notes only</label>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.7em;">
+                <input type="checkbox" id="legacy-interface">
+                <label for="legacy-interface" style="margin:0; font-size:1em; font-weight:400;">Legacy interface</label>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.7em;">
+                <input type="checkbox" id="legacy-tone-range">
+                <label for="legacy-tone-range" style="margin:0; font-size:1em; font-weight:400;">Legacy tone range</label>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.7em;">
+                <input type="checkbox" id="legacy-disruptor-range">
+                <label for="legacy-disruptor-range" style="margin:0; font-size:1em; font-weight:400;">Legacy disruptor range</label>
+            </div>
+            <menu style="display:flex; justify-content:flex-end; gap:1em; margin-top:1em;">
+                <button value="cancel" style="padding:0.4em 1.2em;">Close</button>
+            </menu>
+        </form>
+    </dialog>
+    <script>
+    // --- Binaural Oscillator Control JS ---
+    // Get references to controls
+    const playBtn = document.getElementById('play-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsDialog = document.getElementById('settings-dialog');
+    const toneSlider = document.getElementById('tone');
+    const ldSlider = document.getElementById('ld');
+    const rdSlider = document.getElementById('rd');
+    const offsetSlider = document.getElementById('offset');
+    const volumeSlider = document.getElementById('volume');
+    const musicNotesOnly = document.getElementById('music-notes-only');
+    const legacyInterface = document.getElementById('legacy-interface');
+    const legacyToneRange = document.getElementById('legacy-tone-range');
+    const legacyDisruptorRange = document.getElementById('legacy-disruptor-range');
+    const logarithmicTone = document.getElementById('log-tone');
+
+    const AUDIO_RAMP_TIME = 0.05;
+
+        const toneMinLabel = document.getElementById('tone-min-label');
+        const toneMaxLabel = document.getElementById('tone-max-label');
+        const toneCurrentLabel = document.getElementById('tone-current-label');
+        const ldCurrentLabel = document.getElementById('ld-current-label');
+        const rdCurrentLabel = document.getElementById('rd-current-label');
+        const leftVolumeSlider = document.getElementById('left-volume');
+        const rightVolumeSlider = document.getElementById('right-volume');
+        const debugUI = false; // Set to true for debug output
+
+                // --- WebAudio Binaural Oscillator Setup ---
+        let audioCtx = null;
+        let leftOsc = null, rightOsc = null;
+        let leftGain = null, rightGain = null;
+        let leftPan = null, rightPan = null;
+        let isPlaying = false;
+
+        function clamp(value, min, max) {
+            // Clamp value to range [min, max]
+            return Math.min(Math.max(value, min), max);
+        }
+        function deLerp(v, min, max) {
+            // Convert value to range [0,1]
+            return (v - min) / (max - min);
+        }
+        function lerp(v, min, max) {
+            // Convert value from range [0,1] to [min,max]
+            return v * (max - min) + min;
+        }
+        function sliderPercentageRead(slider) {
+            // Read slider value and convert to range [0,1]
+            return clamp(deLerp(Number(slider.value), Number(slider.min), Number(slider.max)), 0, 1);
+        }
+        function sliderPercentageWrite(slider, percentage) {
+            // Write percentage value to slider, clamped to [0,1]
+            const min = Number(slider.min);
+            const max = Number(slider.max);
+            return Math.round(lerp(clamp(percentage,0,1), min, max));
+        }
+        // --- Volume/Offset <-> Left/Right Volume Sync Logic ---
+        function updateLeftRightFromVolumeOffset() {
+            // Compute left/right from volume and offset
+            const volume = sliderPercentageRead(volumeSlider);
+            let offset = sliderPercentageRead(offsetSlider);
+            // Go to -1 to 1 range
+            offset = 2*offset - 1; // Convert to -1 to 1 range
+            
+            let vless = volume - Math.abs(offset);
+            let left = offset < 0.0 ? volume : vless;
+            let right = offset < 0.0 ? vless : volume;
+
+            console.log(`VolumeOV: ${volume}, Offset: ${offset}, Left: ${left}, Right: ${right}`);
+            leftVolumeSlider.value = sliderPercentageWrite(leftVolumeSlider, left);
+            rightVolumeSlider.value = sliderPercentageWrite(rightVolumeSlider, right);
+        }
+
+        function updateVolumeOffsetFromLeftRight() {
+            // Compute volume and offset from left/right
+            const left = sliderPercentageRead(leftVolumeSlider);
+            const right = sliderPercentageRead(rightVolumeSlider);
+            // Volume is average, offset is half-difference
+            const volume = Math.max(left, right);
+            const vless = Math.min(left, right);
+            const offset = (right - left)/2+0.5;
+
+            console.log(`VolumeLR: ${volume}, Offset: ${offset}, Left: ${left}, Right: ${right}`);
+            
+            volumeSlider.value = sliderPercentageWrite(volumeSlider, volume);
+            offsetSlider.value = sliderPercentageWrite(offsetSlider, offset);
+        }
+
+
+
+    window.addEventListener('DOMContentLoaded', function() {
+
+                // Attach event listeners for sync
+        volumeSlider.addEventListener('input', updateLeftRightFromVolumeOffset);
+        offsetSlider.addEventListener('input', updateLeftRightFromVolumeOffset);
+        leftVolumeSlider.addEventListener('input', updateVolumeOffsetFromLeftRight);
+        rightVolumeSlider.addEventListener('input', updateVolumeOffsetFromLeftRight);
+
+        // --- Music Notes Only Enable/Disable ---
+        function updateMusicNotesOnlyState() {
+            musicNotesOnly.disabled = !logarithmicTone.checked;
+            if (!logarithmicTone.checked) {
+                musicNotesOnly.checked = false;
+            }
+        }
+        logarithmicTone.addEventListener('change', updateMusicNotesOnlyState);
+        // Initialize on load
+        updateMusicNotesOnlyState();
+
+        // --- Internal Tone Range State ---
+        // Set DOM slider min/max to initial values
+        toneSlider.min = 20;
+        toneSlider.max = 4186.81;
+        
+
+
+        function getToneFromSlider(x) {
+            // Get the value directly from the DOM slider
+            
+            if(logarithmicTone.checked) {
+                // Convert tone to logarithmic scale
+                return expHz(x);
+            }
+            return x;
+        }
+        function expHz(lhz) {
+            // Convert logarithmic value back to Hz
+            return Math.pow(2.0, lhz / 12.0) * 16.35;
+        }
+        function logHz(hz) {
+            return 12.0* Math.log2(hz / 16.35);
+        }
+        function noteFromHz(hz) {
+            // Convert frequency in Hz to note number
+            let n=Math.round(logHz(hz));
+            return ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][n % 12]+
+                (n >= 0 ? Math.floor(n / 12) : Math.ceil(n / 12));
+        }
+
+        // --- Legacy Tone Range Toggle ---
+        function updateToneRange() {
+            if (legacyToneRange.checked) {
+                toneSlider.min = 32.70; // C0
+                toneSlider.max = 362;
+            } else {
+                toneSlider.min = 20.60; // x=12 Math.log(f/16.35) / Math.log(2)
+                toneSlider.max = 4186.81;
+            }
+
+            if(logarithmicTone.checked) {
+                toneSlider.min = logHz(toneSlider.min);
+                toneSlider.max = logHz(toneSlider.max);
+            }
+            
+            if(musicNotesOnly.checked) {
+                // Set to 12-tone equal temperament scale
+                toneSlider.step = 1;
+            } else {
+                toneSlider.step = Number(toneSlider.max - toneSlider.min) / 1000.0;
+            }
+
+            toneSlider.value = sliderPercentageWrite(toneSlider, 0.5); // Set to middle value
+
+            updateTone();
+        }
+        legacyToneRange.addEventListener('change', updateToneRange);
+        // Initialize on load
+        updateToneRange();
+
+        function hzString(hz){
+            let tcstr = (Math.round(hz*10.0) / 10.0).toString();
+            tcstr += ' Hz <' + noteFromHz(hz).toString()+'>'; // Add unit for clarity
+            return tcstr;
+        }
+
+        function updateTone() {
+            // Update global currentTone from slider
+            currentTone = getToneFromSlider(Number(toneSlider.value));
+            // Update min/max labels from DOM
+            toneMinLabel.textContent = Math.round(getToneFromSlider(Number(toneSlider.min)));
+            toneMaxLabel.textContent = Math.round(getToneFromSlider(Number(toneSlider.max)));
+            // Update current label
+
+            toneCurrentLabel.textContent = hzString(currentTone);
+
+            ldSlider.value = sliderPercentageWrite(ldSlider,0.5);
+            rdSlider.value = sliderPercentageWrite(rdSlider,0.5);
+            updateDistortion();
+
+            setOscillatorParams();
+        }
+
+        function updateDistortionSlider(sliderD,sliderLabel) {
+            // Update LD and RD based on current tone
+
+            let ld=sliderPercentageRead(sliderD);
+            //scale to -1 to 1 range
+            ld = 2*ld - 1; // Convert to -1 to 1 range
+            sliderLabel.textContent = Math.round(ld * 100) + '%';
+            
+            
+        }
+        function updateDistortion(){
+            updateDistortionSlider(ldSlider, ldCurrentLabel, null,null);
+            updateDistortionSlider(rdSlider, rdCurrentLabel, null,null);
+            setOscillatorParams();
+        }
+        function getDistortionFreq(value, freq) {
+            // Calculate distortion frequency based on tone and slider value
+            
+            // Scale distortion based on slider value
+            return freq * (1 + value);
+        }
+
+        // Update on slider and range changes
+        toneSlider.addEventListener('input', updateTone);
+        legacyToneRange.addEventListener('change', updateTone);
+        // Initialize on load
+        updateTone();
+
+        ldSlider.addEventListener('input',updateDistortion);
+        rdSlider.addEventListener('input',updateDistortion);
+        // --- Legacy Interface Toggle ---
+        function updateLegacyInterfaceUI() {
+            const legacy = legacyInterface.checked;
+            // Top row: hide RD if legacy
+            document.getElementById('rd-container').style.display = legacy ? 'none' : '';
+            // Top row: adjust grid columns
+            document.querySelector('.sliders-row').style.gridTemplateColumns = legacy ? '1fr 2fr' : '1fr 2fr 1fr';
+            // Bottom row: hide Offset, show Left Volume if legacy
+
+            if(debugUI){
+                document.getElementById('offset-container').style.display = '';
+                document.getElementById('volume-container').style.display = '';
+                document.getElementById('left-volume-container').style.display = '';
+                document.getElementById('right-volume-container').style.display = '';
+            
+            }
+            else{
+                document.getElementById('offset-container').style.display = legacy ? 'none' : '';
+                document.getElementById('volume-container').style.display = legacy ? 'none' : '';
+                document.getElementById('left-volume-container').style.display = legacy ? '' : 'none';
+                document.getElementById('right-volume-container').style.display = legacy ? '' : 'none';
+            }
+        }
+        legacyInterface.addEventListener('change', updateLegacyInterfaceUI);
+        // Initialize on load
+        updateLegacyInterfaceUI();
+
+
+
+        function setupAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            // Left channel
+            leftOsc = audioCtx.createOscillator();
+            leftGain = audioCtx.createGain();
+            leftPan = audioCtx.createStereoPanner();
+            leftPan.pan.value = -1; // full left
+            leftOsc.connect(leftGain).connect(leftPan).connect(audioCtx.destination);
+
+            // Right channel
+            rightOsc = audioCtx.createOscillator();
+            rightGain = audioCtx.createGain();
+            rightPan = audioCtx.createStereoPanner();
+            rightPan.pan.value = 1; // full right
+            rightOsc.connect(rightGain).connect(rightPan).connect(audioCtx.destination);
+
+            // Start oscillators but keep gain at 0 until play
+            leftOsc.start();
+            rightOsc.start();
+            leftGain.gain.value = 0;
+            rightGain.gain.value = 0;
+        }
+
+        function setOscillatorParams() {
+            // Frequency from tone slider
+            let freq = getToneFromSlider(Number(toneSlider.value));
+            let ldval = getDistortionFreq(sliderPercentageRead(ldSlider), freq);
+            let rdval = getDistortionFreq(sliderPercentageRead(rdSlider), freq);
+            // Gain from left/right volume sliders (use sliderPercentageRead for 0-1 mapping)
+            let leftVol = sliderPercentageRead(leftVolumeSlider);
+            let rightVol = sliderPercentageRead(rightVolumeSlider);
+            // Use linear ramp for smooth transitions
+            if (leftOsc && rightOsc && leftGain && rightGain) {
+                leftOsc.frequency.cancelScheduledValues(audioCtx.currentTime);
+                rightOsc.frequency.cancelScheduledValues(audioCtx.currentTime);
+                leftOsc.frequency.linearRampToValueAtTime(ldval, audioCtx.currentTime + AUDIO_RAMP_TIME);
+                rightOsc.frequency.linearRampToValueAtTime(rdval, audioCtx.currentTime + AUDIO_RAMP_TIME);
+                leftGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                rightGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                leftGain.gain.linearRampToValueAtTime(isPlaying ? leftVol : 0, audioCtx.currentTime + AUDIO_RAMP_TIME);
+                rightGain.gain.linearRampToValueAtTime(isPlaying ? rightVol : 0, audioCtx.currentTime + AUDIO_RAMP_TIME);
+            }
+        }
+
+        // Play/Pause stateless toggle
+        playBtn.addEventListener('click', () => {
+            setupAudio();
+            playBtn.style.display = 'none';
+            pauseBtn.style.display = '';
+            isPlaying = true;
+            setOscillatorParams();           
+        });
+        pauseBtn.addEventListener('click', () => {
+            pauseBtn.style.display = 'none';
+            playBtn.style.display = '';
+            isPlaying = false;
+            // Mute
+            
+            setOscillatorParams();
+            
+        });
+
+        // Update audio params live when UI changes
+        [toneSlider, leftVolumeSlider, rightVolumeSlider].forEach(slider => {
+            slider.addEventListener('input', () => {
+                if (isPlaying) setOscillatorParams();
+            });
+        });
+
+        resetBtn.addEventListener('click', () => {
+            // Only reset LD and RD sliders to 0
+            ldSlider.value = 0;
+            rdSlider.value = 0;
+        });
+
+        // Settings dialog open/close
+        settingsBtn.addEventListener('click', () => {
+            settingsDialog.showModal();
+        });
+        settingsDialog.addEventListener('close', () => {
+            // Optionally handle dialog close
+            updateToneRange();
+        });
+    });
+    </script>
+</body>
+</html>
